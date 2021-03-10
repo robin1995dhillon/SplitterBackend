@@ -1,0 +1,1 @@
+The project helps to separate the lyrics and music from a music file
