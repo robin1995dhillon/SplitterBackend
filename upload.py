@@ -1,7 +1,8 @@
 import os
 import boto3
 from jproperties import Properties
-from flask import Flask,render_template,request,redirect,session
+from flask import Flask, render_template, request, redirect, session, flash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -18,4 +19,22 @@ print(aws_access_key_id)
 print(aws_secret_access_key)
 print(aws_session_token)
 
-dynamo = boto3.resource('dynamodb', region_name=region_name, aws_access_key_id = aws_access_key_id,aws_secret_access_key = aws_secret_access_key,aws_session_token=aws_session_token)
+
+# dynamo = boto3.resource('dynamodb', region_name=region_name, aws_access_key_id = aws_access_key_id,aws_secret_access_key = aws_secret_access_key,aws_session_token=aws_session_token)
+
+@app.route('/upload', methods=['GET', 'POST'])
+def getDetails():
+    if request.method == 'POST':
+        email = request.form.get('email', '')
+        if 'file' not in request.files:
+            flash('No file')
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file selected')
+            return redirect(request.url)
+        if file:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            print('done')
+    return
