@@ -22,42 +22,59 @@ aws_access_key_id = config.get("AWS_ACCESS_KEY_ID").data
 aws_secret_access_key = config.get("AWS_SECRET_ACCESS_KEY").data
 aws_session_token = config.get("AWS_SESSION_TOKEN").data
 
+dynamo = boto3.resource('dynamodb', region_name=region_name, aws_access_key_id=aws_access_key_id,
+                        aws_secret_access_key=aws_secret_access_key, aws_session_token=aws_session_token)
+
+s3 = boto3.resource(service_name='s3',
+                    region_name=region_name,
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    aws_session_token=aws_session_token)
+
+sns = boto3.client('sns',
+                   region_name=region_name,
+                   aws_access_key_id=aws_access_key_id,
+                   aws_secret_access_key=aws_secret_access_key,
+                   aws_session_token=aws_session_token)
+email = ''
+response = sns.list_topics()
+topics = response["Topics"]
+
+print(f'topics are {topics}')
+for arn in topics:
+    # print(arn['TopicArn'])
+    if 'dynamodb' not in arn['TopicArn']:
+        continue
+    else:
+        topic_arn = arn['TopicArn']
+        # print(f'topic_arn is {topic_arn}')
+        # print(type(topic_arn))
+# topic_arn = topics["TopicArn"]
+# print(f'topic_arn is {topic_arn}')
+trans = {}
+
+# response = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="user@server.com")
+# subscription_arn = response["SubscriptionArn"]
+
 print(aws_access_key_id)
 print(aws_secret_access_key)
 print(aws_session_token)
-
-# today = date.today().strftime("%d/%m/%Y")
-# dynamo = boto3.resource('dynamodb', region_name=region_name, aws_access_key_id=aws_access_key_id,
-#                         aws_secret_access_key=aws_secret_access_key, aws_session_token=aws_session_token)
-# table = dynamo.Table('converter')
-# id_value = []
-# print(table)
-# response = table.scan()
-# print(response['Items'])
-# for i in response['Items']:
-#     id_value.append(i['id'])
-# while random_val in id_value:
-#     random_val = random.randint(0, maximum)
-# print(response)
-# print(id_value)
 
 
 @app.route('/upload', methods=['GET', 'POST'])
 def getDetails():
     random_val = random.randint(0, maximum)
     today = date.today().strftime("%d/%m/%Y")
-    dynamo = boto3.resource('dynamodb', region_name=region_name, aws_access_key_id=aws_access_key_id,
-                            aws_secret_access_key=aws_secret_access_key, aws_session_token=aws_session_token)
     table = dynamo.Table('converter')
     id_value = []
     print(table)
-    response = table.scan()
-    print(response['Items'])
-    for i in response['Items']:
+    responses = table.scan()
+    print(responses['Items'])
+    for i in responses['Items']:
         id_value.append(i['id'])
     while random_val in id_value:
         random_val = random.randint(0, maximum)
-    print(response)
+    print(responses)
     print(id_value)
 
     if request.method == 'POST':
@@ -74,18 +91,33 @@ def getDetails():
             trans = {'id': random_val,
                      'email': email,
                      'date': today,
-                     'file': filename}
+                     'file': filename,
+                     'status': 1}
 
             path = 'D://Dalhousie//' + filename
             file.save(os.path.join(UPLOAD_FOLDER, filename))
-            s3 = boto3.resource(service_name='s3',
-                                region_name=region_name,
-                                aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key,
-                                aws_session_token=aws_session_token)
-            s3.Bucket('mp3filebucket').upload_file(Filename=path, Key=filename)
+            # s3 = boto3.resource(service_name='s3',
+            #                     region_name=region_name,
+            #                     aws_access_key_id=aws_access_key_id,
+            #                     aws_secret_access_key=aws_secret_access_key,
+            #                     aws_session_token=aws_session_token)
+            # s3.Bucket('mp3filebucket').upload_file(Filename=path, Key=filename)
             print(filename)
             print(email)
             print('done')
             table.put_item(Item=trans)
     return "its done"
+
+
+@app.route('/mail', methods=['GET', 'POST'])
+def sendEmail():
+    print(topic_arn)
+    link = 'google.com/ada/asdas/a/sadasdasda'
+    email = 'robin1995.dhillon@gmail.com'
+    response_sns = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint=email)
+    subscription_arn = response_sns["SubscriptionArn"]
+    sns.publish(TopicArn=topic_arn,
+                Message=f"Hi, here is your link to download {link}",
+                Subject="Link to download")
+    return 'mail sent'
+
