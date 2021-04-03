@@ -6,6 +6,8 @@ import random
 from flask import Flask, render_template, request, redirect, session, flash
 from werkzeug.utils import secure_filename
 from datetime import date
+import json
+import requests
 
 UPLOAD_FOLDER = 'D://Dalhousie'
 
@@ -67,6 +69,8 @@ def getDetails():
     today = date.today().strftime("%d/%m/%Y")
     table = dynamo.Table('converter')
     id_value = []
+    data = {}
+    response = None
     print(table)
     responses = table.scan()
     print(responses['Items'])
@@ -95,29 +99,42 @@ def getDetails():
                      'status': 1}
 
             path = 'D://Dalhousie//' + filename
+            key = str(random_val) + '_' + filename
             file.save(os.path.join(UPLOAD_FOLDER, filename))
-            # s3 = boto3.resource(service_name='s3',
-            #                     region_name=region_name,
-            #                     aws_access_key_id=aws_access_key_id,
-            #                     aws_secret_access_key=aws_secret_access_key,
-            #                     aws_session_token=aws_session_token)
-            # s3.Bucket('mp3filebucket').upload_file(Filename=path, Key=filename)
+            s3 = boto3.resource(service_name='s3',
+                                region_name=region_name,
+                                aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key,
+                                aws_session_token=aws_session_token)
+            s3.Bucket('mp3filebucket').upload_file(Filename=path, Key=key)
             print(filename)
             print(email)
             print('done')
+            data = {'email': email,
+                    'id': random_val
+                    }
             table.put_item(Item=trans)
-    return "its done"
+            params = {'key': key, 'bucket': 'mp3filebucket', 'email': email}
+            url = 'http://54.175.220.48:8080'
+            response_post = requests.post(url, params)
+            response = app.response_class(
+                response=json.dumps(data),
+                status=200,
+                mimetype='application/json'
+            )
+    return response
 
 
 @app.route('/mail', methods=['GET', 'POST'])
 def sendEmail():
     print(topic_arn)
-    link = 'google.com/ada/asdas/a/sadasdasda'
-    email = 'robin1995.dhillon@gmail.com'
+    bucket = request.form.get('bucket')
+    key = request.form.get('key')
+    email = request.form.get('email')
+    link = f'https://{bucket}.s3.amazonaws.com/{key}'
     response_sns = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint=email)
     subscription_arn = response_sns["SubscriptionArn"]
     sns.publish(TopicArn=topic_arn,
                 Message=f"Hi, here is your link to download {link}",
                 Subject="Link to download")
     return 'mail sent'
-
