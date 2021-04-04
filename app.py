@@ -9,11 +9,10 @@ from datetime import date
 import json
 import requests
 
-UPLOAD_FOLDER = 'D://Dalhousie'
-
+UPLOAD_FOLDER = './uploads'
+BUCKET = 'cloudofduty'
 app = Flask(__name__)
 maximum = sys.maxsize
-a = 715968128483455541
 app.secret_key = os.urandom(24)
 config = Properties()
 region_name = "us-east-1"
@@ -42,7 +41,7 @@ email = ''
 response = sns.list_topics()
 topics = response["Topics"]
 
-print(f'topics are {topics}')
+# print(f'topics are {topics}')
 for arn in topics:
     # print(arn['TopicArn'])
     if 'dynamodb' not in arn['TopicArn']:
@@ -71,15 +70,15 @@ def getDetails():
     id_value = []
     data = {}
     response = None
-    print(table)
+    # print(table)
     responses = table.scan()
-    print(responses['Items'])
+    # print(responses['Items'])
     for i in responses['Items']:
         id_value.append(i['id'])
     while random_val in id_value:
         random_val = random.randint(0, maximum)
-    print(responses)
-    print(id_value)
+    # print(responses)
+    # print(id_value)
 
     if request.method == 'POST':
         email = request.form.get('email', '')
@@ -98,15 +97,15 @@ def getDetails():
                      'file': filename,
                      'status': 1}
 
-            path = 'D://Dalhousie//' + filename
+            path = "./uploads/"+filename
             key = str(random_val) + '_' + filename
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            file.save(os.path.join("./uploads", filename))
             s3 = boto3.resource(service_name='s3',
                                 region_name=region_name,
                                 aws_access_key_id=aws_access_key_id,
                                 aws_secret_access_key=aws_secret_access_key,
                                 aws_session_token=aws_session_token)
-            s3.Bucket('mp3filebucket').upload_file(Filename=path, Key=key)
+            s3.Bucket(BUCKET).upload_file(Filename="./uploads/"+filename, Key=key)
             print(filename)
             print(email)
             print('done')
@@ -114,8 +113,8 @@ def getDetails():
                     'id': random_val
                     }
             table.put_item(Item=trans)
-            params = {'key': key, 'bucket': 'mp3filebucket', 'email': email}
-            url = 'http://54.175.220.48:8080'
+            params = {'key': key, 'bucket': BUCKET, 'email': email}
+            url = 'https://glivwokrp2.execute-api.us-east-1.amazonaws.com'
             response_post = requests.post(url, params)
             response = app.response_class(
                 response=json.dumps(data),
@@ -124,17 +123,3 @@ def getDetails():
             )
     return response
 
-
-@app.route('/mail', methods=['GET', 'POST'])
-def sendEmail():
-    print(topic_arn)
-    bucket = request.form.get('bucket')
-    key = request.form.get('key')
-    email = request.form.get('email')
-    link = f'https://{bucket}.s3.amazonaws.com/{key}'
-    response_sns = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint=email)
-    subscription_arn = response_sns["SubscriptionArn"]
-    sns.publish(TopicArn=topic_arn,
-                Message=f"Hi, here is your link to download {link}",
-                Subject="Link to download")
-    return 'mail sent'
