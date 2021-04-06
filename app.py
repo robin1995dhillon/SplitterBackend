@@ -1,13 +1,14 @@
-import os
-import boto3
-import sys
-from jproperties import Properties
-import random
-from flask import Flask, render_template, request, redirect, session, flash
-from werkzeug.utils import secure_filename
-from datetime import date
 import json
+import os
+import random
+import sys
+from datetime import date
+
+import boto3
 import requests
+from flask import Flask, request, redirect, flash
+from jproperties import Properties
+from werkzeug.utils import secure_filename
 
 UPLOAD_FOLDER = './uploads'
 BUCKET = 'cloudofduty'
@@ -32,34 +33,8 @@ s3 = boto3.resource(service_name='s3',
                     aws_secret_access_key=aws_secret_access_key,
                     aws_session_token=aws_session_token)
 
-sns = boto3.client('sns',
-                   region_name=region_name,
-                   aws_access_key_id=aws_access_key_id,
-                   aws_secret_access_key=aws_secret_access_key,
-                   aws_session_token=aws_session_token)
 email = ''
-response = sns.list_topics()
-topics = response["Topics"]
-
-# print(f'topics are {topics}')
-for arn in topics:
-    # print(arn['TopicArn'])
-    if 'dynamodb' not in arn['TopicArn']:
-        continue
-    else:
-        topic_arn = arn['TopicArn']
-        # print(f'topic_arn is {topic_arn}')
-        # print(type(topic_arn))
-# topic_arn = topics["TopicArn"]
-# print(f'topic_arn is {topic_arn}')
 trans = {}
-
-# response = sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint="user@server.com")
-# subscription_arn = response["SubscriptionArn"]
-
-print(aws_access_key_id)
-print(aws_secret_access_key)
-print(aws_session_token)
 
 
 @app.route('/upload', methods=['GET', 'POST'])
@@ -70,15 +45,11 @@ def getDetails():
     id_value = []
     data = {}
     response = None
-    # print(table)
     responses = table.scan()
-    # print(responses['Items'])
     for i in responses['Items']:
         id_value.append(i['id'])
     while random_val in id_value:
         random_val = random.randint(0, maximum)
-    # print(responses)
-    # print(id_value)
 
     if request.method == 'POST':
         email = request.form.get('email', '')
@@ -106,9 +77,6 @@ def getDetails():
                                 aws_secret_access_key=aws_secret_access_key,
                                 aws_session_token=aws_session_token)
             s3.Bucket(BUCKET).upload_file(Filename="./uploads/"+filename, Key=key)
-            print(filename)
-            print(email)
-            print('done')
             data = {'email': email,
                     'id': random_val
                     }
