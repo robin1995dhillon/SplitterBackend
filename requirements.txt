@@ -1,0 +1,7 @@
+flask~=1.1.2
+
+flask_cors
+boto3~=1.17.24
+jproperties~=2.1.0
+werkzeug~=1.0.1
+requests~=2.24.0
